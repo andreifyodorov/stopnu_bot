@@ -21,20 +21,37 @@ stat = dict()
 @app.route('/' + settings.TOKEN, methods=['POST'])
 def webhook():
     update = telegram.update.Update.de_json(request.get_json(force=True), bot)
-    process_message(
-        text=update.message.text,
-        chatkey=update.message.chat_id,
-        send_callback=lambda text: bot.sendMessage(chat_id=update.message.chat_id, text=text)
-    )
+
+    text = update.message.text
+    chatkey = update.message.chat_id
+    if text is not None:
+        process_message(
+            text=text,
+            chatkey=chatkey,
+            send_callback=lambda text: bot.sendMessage(chat_id=chatkey, text=text)
+        )
 
     return 'OK'
 
 
 def process_message(text, chatkey, send_callback):
-    if 'help' in text:
-        send_callback('words I understand are "help" and "stat"')
-    elif 'stat' in text:
-        send_callback('I sent you %s ahas' % stat.get(chatkey, 0))
+    tokens = text.lower().split(" ");  # tokenize
+
+    user_stat = None
+    if chatkey in stat:
+        user_stat = stat[chatkey]
     else:
-        send_callback('aha')
-        stat[chatkey] = stat.get(chatkey, 0) + 1
+        user_stat = {}
+        stat[chatkey] = user_stat
+
+    if 'help' in tokens:
+        send_callback('words I understand are "help" and "stat", and I will count everything else')
+
+    elif 'stat' in tokens:
+        for k, v in user_stat.iteritems():
+            send_callback('You sent %d "%s"s' % (v, k))
+
+    else:
+        for token in tokens:
+            v = user_stat[token] = user_stat.get(token, 0) + 1
+            send_callback('It was %d "%s"s' % (v, token))
