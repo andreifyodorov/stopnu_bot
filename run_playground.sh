@@ -9,11 +9,12 @@ if [[ $(uname -s) != 'Darwin' ]]; then
 	exit 1
 fi
 
-. .ve.stopnu_bot/bin/activate
+. $HOME/virtualenv/$(basename $(pwd))/bin/activate
+pip install -r requirments.txt
 
 # run ssh tunnel
 ssh -N -R 8080:localhost:5000 bakunin.nl &
 trap "kill %1" EXIT
 
 # run local server
-FLASK_APP=app.py FLASK_DEBUG=1 python -m flask run
+FLASK_APP=app.py FLASK_DEBUG=1 IS_PLAYGROUND=1 python -m flask run
