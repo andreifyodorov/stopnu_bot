@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 from os import getenv
-from random import choice
+from collections import defaultdict
 from flask import Flask, request
+from chatflow import Chatflow, ChatContext
 import telegram
 import settings
 
@@ -16,7 +17,7 @@ bot.setWebhook(url='https://%s/%s' % (settings.WEBHOOK_HOST, settings.TOKEN),
 # print bot.getWebhookInfo()
 
 app = Flask(__name__)
-stat = dict()
+user_context = defaultdict(ChatContext)
 
 @app.route('/' + settings.TOKEN, methods=['POST'])
 def webhook():
@@ -24,34 +25,12 @@ def webhook():
 
     text = update.message.text
     chatkey = update.message.chat_id
+
     if text is not None:
-        process_message(
-            text=text,
-            chatkey=chatkey,
-            send_callback=lambda text: bot.sendMessage(chat_id=chatkey, text=text)
-        )
+        chatflow = Chatflow(
+            context=user_context[chatkey],
+            reply_callback=lambda text: bot.sendMessage(chat_id=chatkey, text=text))
+
+        chatflow.process_message(text)
 
     return 'OK'
-
-
-def process_message(text, chatkey, send_callback):
-    tokens = text.lower().split(" ");  # tokenize
-
-    user_stat = None
-    if chatkey in stat:
-        user_stat = stat[chatkey]
-    else:
-        user_stat = {}
-        stat[chatkey] = user_stat
-
-    if 'help' in tokens:
-        send_callback('words I understand are "help" and "stat", and I will count everything else')
-
-    elif 'stat' in tokens:
-        for k, v in user_stat.iteritems():
-            send_callback('You sent %d "%s"s' % (v, k))
-
-    else:
-        for token in tokens:
-            v = user_stat[token] = user_stat.get(token, 0) + 1
-            send_callback('It was %d "%s"s' % (v, token))
